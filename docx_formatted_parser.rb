@@ -1,15 +1,13 @@
 require 'docx'
 require 'pry'
 
-FILE_PATH = ''
-
 class DocParser
   LISTING_REGEX = 'Listing (\d).(\d)'
   CODE_END = '^(\s\d{1,4}|\d{1,4})'
 
   def initialize(path)
     @doc = Docx::Document.open(path)
-    @name = "7"
+    @name = path.match(/Chapters\/(.*)\.docx/)[1]
     @code_blocks = []
   end
 
@@ -22,7 +20,7 @@ class DocParser
     paragraph.text.gsub!(/#{CODE_END}/, '')
   end
 
-  def parse!
+  def parse_and_check!
     capture = false
     @doc.paragraphs.each do |p|
       is_start = listing_start? p
@@ -44,13 +42,17 @@ class DocParser
   end
 
   def check!
-    File.open("#{@name}.rb", 'w') do |f|
+    `rm ./out/#{@name}.rb`
+    File.open("./out/#{@name}.rb", 'w') do |f|
       f.write(@code_blocks.join("\n"))
     end
-    puts `ruby -c #{@name}.rb`
-    `rm ./#{@name}.rb`
+    synxax_ok = `ruby -c ./out/#{@name}.rb`
+    puts "#{@name} - #{synxax_ok}"
+    ## Uncomment out if you'd like this to be idempotent and clean up after itself.
+    #`rm ./out/#{@name}.rb`
   end
 end
 
-DocParser.new(FILE_PATH).parse_and_check!
-
+Dir.glob('./**/*.docx') do |file|
+  DocParser.new(file).parse_and_check!
+end
